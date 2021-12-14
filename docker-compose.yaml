@@ -1,0 +1,58 @@
+version: '2'
+
+services:
+  postgresql-master:
+    image: docker.io/bitnami/postgresql:11
+    ports:
+      - '5432'
+    volumes:
+      - 'postgresql_master_data:/bitnami/postgresql'
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=master
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRESQL_PASSWORD=password
+
+  postgresql-slave:
+    image: docker.io/bitnami/postgresql:11
+    ports:
+      - '5432'
+    depends_on:
+      - postgresql-master
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRESQL_MASTER_HOST=postgresql-master
+      - POSTGRESQL_PASSWORD=password
+      - POSTGRESQL_MASTER_PORT_NUMBER=5432
+
+  pgbouncer-master:
+    image: docker.io/bitnami/pgbouncer:latest
+    ports:
+      - 6432:6432
+    environment:
+      - POSTGRESQL_PASSWORD=password
+      - POSTGRESQL_HOST=postgresql-master
+      - PGBOUNCER_IGNORE_STARTUP_PARAMETERS=extra_float_digits
+
+  pgbouncer-slave:
+    image: docker.io/bitnami/pgbouncer:latest
+    ports:
+      - 6433:6432
+    environment:
+      - POSTGRESQL_PASSWORD=password
+      - POSTGRESQL_HOST=postgresql-slave
+      - PGBOUNCER_IGNORE_STARTUP_PARAMETERS=extra_float_digits
+
+  haproxy:
+    image: haproxy:2.3
+    ports:
+      - 5433:5433
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+
+
+volumes:
+  postgresql_master_data:
+    driver: local
